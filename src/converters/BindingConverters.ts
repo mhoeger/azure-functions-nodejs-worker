@@ -3,6 +3,7 @@ import { FunctionInfo } from '../FunctionInfo';
 import { Dict } from '../Context';
 import { BindingDefinition } from '../public/Interfaces';
 import { fromTypedData } from './RpcConverters';
+import { v4 as uuid } from 'uuid'
 
 type BindingDirection = 'in' | 'out' | 'inout' | undefined;
 
@@ -21,10 +22,18 @@ export function getBindingDefinitions(info: FunctionInfo): BindingDefinition[] {
     });
 }
 
-export function getNormalizedBindingData(request: rpc.IInvocationRequest): Dict<any> {
-  let bindingData: Dict<any> = {
+export function getNormalizedBindingData(request: rpc.IInvocationRequest, addSysData: boolean, functionName: string): Dict<any> {
+  const bindingData: Dict<any> = {
     invocationId: request.invocationId
-  };  
+  };
+
+  if (addSysData) {
+    bindingData.sys = {
+      methodName: functionName,
+      utcNow: (new Date()).toISOString(),
+      randGuid: uuid()
+    };
+  }
 
   // node binding data is camel cased due to language convention
   if (request.triggerMetadata) {

@@ -8,10 +8,8 @@ import LogCategory = rpc.RpcLog.RpcLogCategory;
 import { Context, ExecutionContext, Logger, BindingDefinition, HttpRequest, TraceContext } from './public/Interfaces' 
 
 export function CreateContextAndInputs(info: FunctionInfo, request: rpc.IInvocationRequest, logCallback: LogCallback, callback: ResultCallback) {
-    let context = new InvocationContext(info, request, logCallback, callback);
-
-    let bindings: Dict<any> = {};
-    let inputs: InputTypes[] = [];
+    const bindings: Dict<any> = {};
+    const inputs: InputTypes[] = [];
     let httpInput: RequestProperties | undefined;
     for (let binding of <rpc.IParameterBinding[]>request.inputData) {
         if (binding.data && binding.name) {
@@ -26,6 +24,8 @@ export function CreateContextAndInputs(info: FunctionInfo, request: rpc.IInvocat
         }
     }
 
+    const addSysData = !!httpInput;
+    const context = new InvocationContext(info, request, logCallback, callback, addSysData);
     context.bindings = bindings;
     if (httpInput) {
         context.req = new Request(httpInput);
@@ -49,7 +49,7 @@ class InvocationContext implements Context {
     res?: Response;
     done: DoneCallback;
 
-    constructor(info: FunctionInfo, request: rpc.IInvocationRequest, logCallback: LogCallback, callback: ResultCallback) {
+    constructor(info: FunctionInfo, request: rpc.IInvocationRequest, logCallback: LogCallback, callback: ResultCallback, addSysData: boolean) {
         this.invocationId = <string>request.invocationId;
         this.traceContext = fromRpcTraceContext(request.traceContext);
         const executionContext = {
@@ -73,7 +73,7 @@ class InvocationContext implements Context {
             }
         );
 
-        this.bindingData = getNormalizedBindingData(request);
+        this.bindingData = getNormalizedBindingData(request, addSysData, info.name);
         this.bindingDefinitions = getBindingDefinitions(info);
 
         // isPromise is a hidden parameter that we set to true in the event of a returned promise
