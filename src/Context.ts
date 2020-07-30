@@ -6,6 +6,7 @@ import { Response } from './http/Response';
 import LogLevel = rpc.RpcLog.Level;
 import LogCategory = rpc.RpcLog.RpcLogCategory;
 import { Context, ExecutionContext, Logger, BindingDefinition, HttpRequest, TraceContext } from './public/Interfaces' 
+import { v4 as uuid } from 'uuid'
 
 export function CreateContextAndInputs(info: FunctionInfo, request: rpc.IInvocationRequest, logCallback: LogCallback, callback: ResultCallback) {
     const bindings: Dict<any> = {};
@@ -24,8 +25,8 @@ export function CreateContextAndInputs(info: FunctionInfo, request: rpc.IInvocat
         }
     }
 
-    const addSysData = !!httpInput;
-    const context = new InvocationContext(info, request, logCallback, callback, addSysData);
+    const isHttp = !!httpInput;
+    const context = new InvocationContext(info, request, logCallback, callback, isHttp);
     context.bindings = bindings;
     if (httpInput) {
         context.req = new Request(httpInput);
@@ -49,7 +50,7 @@ class InvocationContext implements Context {
     res?: Response;
     done: DoneCallback;
 
-    constructor(info: FunctionInfo, request: rpc.IInvocationRequest, logCallback: LogCallback, callback: ResultCallback, addSysData: boolean) {
+    constructor(info: FunctionInfo, request: rpc.IInvocationRequest, logCallback: LogCallback, callback: ResultCallback, isHttp: boolean) {
         this.invocationId = <string>request.invocationId;
         this.traceContext = fromRpcTraceContext(request.traceContext);
         const executionContext = {
@@ -73,7 +74,14 @@ class InvocationContext implements Context {
             }
         );
 
-        this.bindingData = getNormalizedBindingData(request, addSysData, info.name);
+        this.bindingData = getNormalizedBindingData(request);
+        if (isHttp) {
+            this.bindingData.sys = {
+              methodName: info.name,
+              utcNow: (new Date()).toISOString(),
+              randGuid: uuid()
+            };
+        }
         this.bindingDefinitions = getBindingDefinitions(info);
 
         // isPromise is a hidden parameter that we set to true in the event of a returned promise
